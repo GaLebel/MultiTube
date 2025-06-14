@@ -41,59 +41,71 @@ const App = () => {
         return match ? match[1] : null;
     };
 
-    // Handle adding videos when the input changes
+    // Synchronize videos state with youtubeUrlsInput
     useEffect(() => {
-        const newVideoIdsFromInput = youtubeUrlsInput.split('\n')
+        const idsFromInput = youtubeUrlsInput
+            .split('\n')
             .map(url => getYoutubeVideoId(url.trim()))
-            .filter(id => id !== null && id !== '');
+            .filter(Boolean);
+        const uniqueIds = [...new Set(idsFromInput)];
 
-        // Only add videos that are not already present in the 'videos' state
-        // We filter by the YouTube video ID (`video.id`), not the React `key`
-        const uniqueNewVideoIds = newVideoIdsFromInput.filter(newId =>
-            !videos.some(video => video.id === newId)
-        );
-
-        if (uniqueNewVideoIds.length > 0) {
-            setVideos(prevVideos => {
-                const updatedVideos = [...prevVideos];
-                // Get current max zIndex to place new videos on top
-                const currentMaxZIndex = prevVideos.reduce((max, v) => Math.max(max, v.zIndex || 0), 0);
-
-                uniqueNewVideoIds.forEach(videoId => {
-                    // Generate a truly unique key for React using `nextId`
-                    const uniqueReactKey = nextId;
-
-                    // Add new videos with default position and size
-                    // Fallback values for container dimensions if ref is not yet available
-                    const containerWidth = containerRef.current ? containerRef.current.offsetWidth : 1200;
-                    const containerHeight = mainContainerHeight; // Use the current main container height
-                    const defaultWidth = 400;
-                    const defaultHeight = 225; // 16:9 aspect ratio
-
-                    // Calculate initial positions to try and fit within container
-                    // Staggering positions to prevent overlapping new videos directly
-                    const numExisting = updatedVideos.length;
-                    const x = (numExisting * 50) % (containerWidth - defaultWidth - 50);
-                    const y = (numExisting * 50) % (containerHeight - defaultHeight - 50);
-
-                    updatedVideos.push({
-                        id: videoId,           // This is the YouTube video ID
-                        key: uniqueReactKey,   // This is the unique key for React's rendering
-                        x: Math.max(0, x),     // Ensure x is non-negative
-                        y: Math.max(0, y),     // Ensure y is non-negative
-                        width: defaultWidth,
-                        height: defaultHeight,
-                        zIndex: currentMaxZIndex + 1 // Place new video on top
-                    });
-                    // Increment nextId for the *next* unique key
-                    setNextId(prev => prev + 1);
-                });
-                return updatedVideos;
+        setVideos(currentVideos => {
+            const finalVideos = uniqueIds.map(id => {
+                const existingVideo = currentVideos.find(v => v.id === id);
+                if (existingVideo) {
+                    return existingVideo; // Preserve existing video state
+                }
+                return null; // Placeholder for new videos
             });
-            // Clear input after adding videos to prevent re-adding on next render
-            setYoutubeUrlsInput('');
-        }
-    }, [youtubeUrlsInput, videos, nextId, mainContainerHeight]); // mainContainerHeight added to dependency array
+
+            let nextAvailableId = nextId;
+            const newVideosCreated = [];
+
+            // Create new videos for the null placeholders
+            const resultVideos = finalVideos.map((video, index) => {
+                if (video) {
+                    return video;
+                }
+
+                const videoId = uniqueIds[index];
+                const containerWidth = containerRef.current ? containerRef.current.offsetWidth : 1200;
+                const containerHeight = mainContainerHeight;
+                const defaultWidth = 400;
+                const defaultHeight = 225;
+                
+                // Calculate position based on the number of videos already processed
+                const numExisting = finalVideos.filter(v => v !== null).length + newVideosCreated.length;
+                const x = (numExisting * 50) % (containerWidth - defaultWidth - 50);
+                const y = (numExisting * 50) % (containerHeight - defaultHeight - 50);
+                
+                const currentMaxZIndex = currentVideos.reduce((max, v) => Math.max(max, v.zIndex || 0), 0);
+
+                const newVideo = {
+                    id: videoId,
+                    key: nextAvailableId,
+                    x: Math.max(0, x),
+                    y: Math.max(0, y),
+                    width: defaultWidth,
+                    height: defaultHeight,
+                    zIndex: currentMaxZIndex + 1,
+                };
+                nextAvailableId++;
+                newVideosCreated.push(newVideo);
+                return newVideo;
+            });
+
+            if (nextAvailableId > nextId) {
+                setNextId(nextAvailableId);
+            }
+
+            // Avoid re-render if nothing has changed
+            if (resultVideos.length === currentVideos.length && resultVideos.every((v, i) => v.key === currentVideos[i]?.key)) {
+                return currentVideos;
+            }
+
+            return resultVideos;
+        });
+    }, [youtubeUrlsInput, mainContainerHeight, nextId]);
 
 
     // Mouse/Touch down handler for dragging individual video
@@ -323,8 +335,16 @@ const App = () => {
 
 
     // Handle removing a video
+    // removeVideo now only needs to modify the input string. The useEffect will handle the rest.
     const removeVideo = (keyToRemove) => {
-        setVideos(prevVideos => prevVideos.filter(video => video.key !== keyToRemove));
+        const videoToRemove = videos.find(video => video.key === keyToRemove);
+        if (videoToRemove) {
+            setYoutubeUrlsInput(prevInput =>
+                prevInput.split('\n')
+                         .filter(url => url.trim() && !url.includes(videoToRemove.id))
+                         .join('\n')
+            );
+        }
     };
 
     // Handle clearing all URLs and videos
@@ -524,7 +544,8 @@ https://youtu.be/your_video_id_2"
                             {/* Close button for the video */}
                             <button
                                 onClick={() => removeVideo(video.key)}
-                                className="absolute top-1 right-1 z-50 bg-red-500 hover:bg-red-600 text-white text-xs p-1 rounded-full w-6 h-6 flex items-center justify-center shadow-md transition-transform transform hover:scale-110"
+                                className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white text-xs p-1 rounded-full w-6 h-6 flex items-center justify-center shadow-md transition-transform transform hover:scale-110"
+                                style={{ zIndex: 52 }}
                                 title="Remove video"
                             >
                                 &times;
