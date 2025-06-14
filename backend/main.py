@@ -12,8 +12,9 @@ app = FastAPI()
 
 # Configure CORS
 origins = [
-    "http://localhost:3000",  # Allow React dev server
-    "http://localhost:5000",  # Allow local access
+    "http://localhost:3000",
+    "http://localhost:5000",
+    "https://multi-tube.vercel.app",
 ]
 
 app.add_middleware(
