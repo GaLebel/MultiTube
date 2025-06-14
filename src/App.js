@@ -22,6 +22,7 @@ const App = () => {
     const [isDragging, setIsDragging] = useState(false);
     // State to track the active resize handle (e.g., 'se', 's', 'e') for individual video
     const [activeHandle, setActiveHandle] = useState(null);
+    const [autoplayEnabled, setAutoplayEnabled] = useState(false);
 
     // New state for controlling the height of the main video container
     const [mainContainerHeight, setMainContainerHeight] = useState(600); // Initial height
@@ -465,6 +466,18 @@ https://youtu.be/your_video_id_2"
                     value={youtubeUrlsInput}
                     onChange={(e) => setYoutubeUrlsInput(e.target.value)}
                 ></textarea>
+                <div className="flex items-center my-4">
+                    <input
+                        id="autoplay-checkbox"
+                        type="checkbox"
+                        checked={autoplayEnabled}
+                        onChange={() => setAutoplayEnabled(!autoplayEnabled)}
+                        className="h-4 w-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                    />
+                    <label htmlFor="autoplay-checkbox" className="ml-2 text-gray-300">
+                        Autoplay videos
+                    </label>
+                </div>
                 <div className="flex space-x-4 mt-4">
                     <button
                         onClick={clearAll}
@@ -515,30 +528,12 @@ https://youtu.be/your_video_id_2"
                         }}
                     >
                         <div className="relative w-full h-full">
-                            {/* Drag handle area */}
+                            {/* Drag handle area - now restricted to the top */}
                             <div
                                 className="absolute top-0 left-0 w-full"
-                                style={{ height: DRAG_PADDING, cursor: 'grab', zIndex: 51 }}
+                                style={{ height: '30px', cursor: 'grab', zIndex: 51 }}
                                 onMouseDown={(e) => handleVideoMouseDown(index, e)}
-                                onTouchStart={(e) => handleVideoMouseDown(index, e.touches[0])}
-                            ></div>
-                            <div
-                                className="absolute bottom-0 left-0 w-full"
-                                style={{ height: DRAG_PADDING, cursor: 'grab', zIndex: 51 }}
-                                onMouseDown={(e) => handleVideoMouseDown(index, e)}
-                                onTouchStart={(e) => handleVideoMouseDown(index, e.touches[0])}
-                            ></div>
-                            <div
-                                className="absolute top-0 left-0 h-full"
-                                style={{ width: DRAG_PADDING, cursor: 'grab', zIndex: 51 }}
-                                onMouseDown={(e) => handleVideoMouseDown(index, e)}
-                                onTouchStart={(e) => handleVideoMouseDown(index, e.touches[0])}
-                            ></div>
-                            <div
-                                className="absolute top-0 right-0 h-full"
-                                style={{ width: DRAG_PADDING, cursor: 'grab', zIndex: 51 }}
-                                onMouseDown={(e) => handleVideoMouseDown(index, e)}
-                                onTouchStart={(e) => handleVideoMouseDown(index, e.touches[0])}
+                                onTouchStart={(e) => handleVideoMouseDown(index, e)}
                             ></div>
 
                             {/* Close button for the video */}
@@ -552,7 +547,7 @@ https://youtu.be/your_video_id_2"
                             </button>
                             {/* YouTube iframe */}
                             <iframe
-                                src={`https://www.youtube.com/embed/${video.id}?autoplay=0&controls=1&modestbranding=1&rel=0`}
+                                src={`https://www.youtube.com/embed/${video.id}?autoplay=${autoplayEnabled ? 1 : 0}&controls=1&modestbranding=1&rel=0`}
                                 frameBorder="0"
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                 allowFullScreen
