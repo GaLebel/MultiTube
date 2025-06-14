@@ -369,7 +369,8 @@ const App = () => {
         setSearchError(null);
 
         try {
-            const response = await fetch(`http://localhost:8000/api/search?query=${encodeURIComponent(searchQuery)}&limit=${searchLimit}`);
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${apiUrl}/api/search?query=${encodeURIComponent(searchQuery)}&limit=${searchLimit}`);
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
