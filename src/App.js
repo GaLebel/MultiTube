@@ -33,6 +33,12 @@ const App = () => {
     const [mainContainerStartHeight, setMainContainerStartHeight] = useState(0);
     const [mainContainerStartMouseY, setMainContainerStartMouseY] = useState(0);
 
+    // State for YouTube search
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchLimit, setSearchLimit] = useState(10);
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchError, setSearchError] = useState(null);
+
 
     // Define a padding around the video content for dragging, but not for resizing
     const DRAG_PADDING = 30; // Increased padding for easier dragging (2x the previous 15)
@@ -356,6 +362,39 @@ const App = () => {
         setNextId(0);
     };
 
+    // Handle searching for videos
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        setIsSearching(true);
+        setSearchError(null);
+
+        try {
+            const response = await fetch(`http://localhost:8000/api/search?query=${encodeURIComponent(searchQuery)}&limit=${searchLimit}`);
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const data = await response.json();
+            
+            // Append new URLs to the existing ones, avoiding duplicates
+            setYoutubeUrlsInput(prevInput => {
+                const existingUrls = prevInput.split('\n').filter(url => url.trim() !== '');
+                const newUrls = data.urls.filter(url => !existingUrls.includes(url));
+                if (newUrls.length === 0) {
+                    return prevInput; // No new URLs to add
+                }
+                // Add a newline before appending if there's existing content
+                const separator = prevInput.trim() === '' ? '' : '\n';
+                return prevInput + separator + newUrls.join('\n');
+            });
+
+        } catch (error) {
+            setSearchError('Failed to fetch videos. Make sure the backend server is running.');
+            console.error('There was a problem with the fetch operation:', error);
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
     // Function to arrange windows in a grid layout
     const arrangeWindows = useCallback(() => {
         if (!containerRef.current || videos.length === 0) return;
@@ -454,6 +493,41 @@ const App = () => {
             <p className="text-gray-300 mb-8 text-center max-w-2xl">
                 Enter YouTube video URLs (one per line). Drag and resize the videos to arrange your custom CCTV dashboard!
             </p>
+
+            {/* Search Section */}
+            <div className="w-full max-w-xl bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
+                <h2 className="text-2xl font-semibold text-gray-200 mb-4">Search & Add Videos</h2>
+                <form onSubmit={handleSearch}>
+                    <div className="flex flex-col sm:flex-row sm:space-x-4 mb-4">
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Enter search query (e.g., 'live news stream')"
+                            required
+                            className="flex-grow p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-100 mb-4 sm:mb-0"
+                        />
+                        <input
+                            type="number"
+                            value={searchLimit}
+                            onChange={(e) => setSearchLimit(e.target.value)}
+                            min="1"
+                            max="50"
+                            required
+                            className="w-full sm:w-24 p-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-100"
+                            title="Number of links to fetch"
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={isSearching}
+                        className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSearching ? 'Searching...' : 'Fetch & Add Links'}
+                    </button>
+                </form>
+                {searchError && <p className="text-red-500 mt-4 text-center">{searchError}</p>}
+            </div>
 
             {/* Input Section */}
             <div className="w-full max-w-xl bg-gray-800 p-6 rounded-xl shadow-lg mb-8">
